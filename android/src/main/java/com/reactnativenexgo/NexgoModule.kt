@@ -220,16 +220,16 @@ class NexgoModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                     }
 
                     // ---------- QR CODE ----------
-                    "qrcode" -> {
-                        val size = options?.getInt("size") ?: 240
-                        printer?.appendBarcode(
-                            value,
-                            BarcodeFormatEnum.QR_CODE,
-                            size,
-                            size,
-                            AlignEnum.CENTER
-                        )
-                    }
+                    // "qrcode" -> {
+                    //     val size = options?.getInt("size") ?: 240
+                    //     printer?.appendBarcode(
+                    //         value,
+                    //         BarcodeFormatEnum.QR_CODE,
+                    //         size,
+                    //         size,
+                    //         AlignEnum.CENTER
+                    //     )
+                    // }
                 }
             }
 
