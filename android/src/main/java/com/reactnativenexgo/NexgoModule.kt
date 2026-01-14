@@ -112,95 +112,141 @@ class NexgoModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
   }
 
-  fun printDynamic(receiptData: ReadableArray, promise: Promise) {
+    // ================= DYNAMIC PRINT =================
+    @ReactMethod
+    fun printDynamic(data: ReadableArray, promise: Promise) {
         try {
             val deviceEngine = APIProxy.getDeviceEngine(reactApplicationContext)
             printer = deviceEngine.printer
             printer?.initPrinter()
 
-            // Cek status printer
-            when (printer?.status) {
-                SdkResult.Success -> {
-                    for (i in 0 until receiptData.size()) {
-                        val item = receiptData.getMap(i) ?: continue
-                        val type = item.getString("type") ?: "text"
-                        val value = item.getString("value") ?: ""
-                        val options = item.getMap("options")
+            if (printer?.status != SdkResult.Success) {
+                promise.reject("PRINTER_ERROR", "Printer not ready")
+                return
+            }
 
-                        when (type.lowercase()) {
+            var currentAlign = AlignEnum.LEFT
 
-                            "text" -> printer?.appendPrnStr(value, 24, AlignEnum.LEFT, false)
+            for (i in 0 until data.size()) {
+                val item = data.getMap(i) ?: continue
+                val type = item.getString("type") ?: "text"
+                val value = item.getString("value") ?: ""
+                val label = item.getString("label")
+                val options = item.getMap("options")
 
-                            "header" -> printer?.appendPrnStr(value, 26, AlignEnum.CENTER, true)
+                when (type) {
 
-                            "divider" -> {
-                                val height = options?.getInt("height") ?: 1
-                                repeat(height) {
-                                    printer?.appendPrnStr("--------------------------------", 24, AlignEnum.LEFT, false)
-                                }
-                            }
-
-                            "align" -> {
-                                // Options: "left", "center", "right"
-                                val align = when (value.lowercase()) {
-                                    "center" -> AlignEnum.CENTER
-                                    "right" -> AlignEnum.RIGHT
-                                    else -> AlignEnum.LEFT
-                                }
-                                printer?.appendPrnStr("", 24, align, false) // dummy line
-                            }
-
-                            "column" -> {
-                                // value = data, label = left side
-                                val label = item.getString("label") ?: ""
-                                val text = "$label: $value"
-                                printer?.appendPrnStr(text, 24, AlignEnum.LEFT, false)
-                            }
-
-                            "image" -> {
-                                val bitmap = stringToBitMap(value)
-                                if (bitmap != null) {
-                                    // Resize if options.width
-                                    val width = options?.getInt("width") ?: bitmap.width
-                                    val ratio = width.toFloat() / bitmap.width
-                                    val height = (bitmap.height * ratio).toInt()
-                                    val scaled = Bitmap.createScaledBitmap(bitmap, width, height, true)
-
-                                    val align = when (options?.getString("position")?.lowercase()) {
-                                        "center" -> AlignEnum.CENTER
-                                        "right" -> AlignEnum.RIGHT
-                                        else -> AlignEnum.LEFT
-                                    }
-                                    printer?.appendImage(scaled, align)
-                                }
-                            }
-
-                            "qrcode" -> {
-                                val size = options?.getInt("size") ?: 240
-                                printer?.appendQrCode(value, size, size, AlignEnum.CENTER)
-                            }
-
-                            else -> {
-                                printer?.appendPrnStr(value, 24, AlignEnum.LEFT, false)
-                            }
+                    // ---------- ALIGN ----------
+                    "align" -> {
+                        currentAlign = when (value) {
+                            "center" -> AlignEnum.CENTER
+                            "right" -> AlignEnum.RIGHT
+                            else -> AlignEnum.LEFT
                         }
                     }
 
-                    // Start printing
-                    printer?.startPrint(true, this)
-                    promise.resolve("Print Started")
-                }
+                    // ---------- HEADER ----------
+                    "header" -> {
+                        printer?.appendPrnStr(
+                            value,
+                            26,
+                            AlignEnum.CENTER,
+                            true
+                        )
+                    }
 
-                SdkResult.Printer_PaperLack -> {
-                    promise.resolve("Printer out of paper")
-                }
+                    // ---------- TEXT ----------
+                    "text" -> {
+                        printer?.appendPrnStr(
+                            value,
+                            24,
+                            currentAlign,
+                            false
+                        )
+                    }
 
-                else -> {
-                    promise.reject("PRINTER_ERROR", "Printer init failed: ${printer?.status}")
+                    // ---------- DIVIDER ----------
+                    "divider" -> {
+                        val height = options?.getInt("height") ?: 1
+                        repeat(height) {
+                            printer?.appendPrnStr(
+                                "--------------------------------",
+                                24,
+                                AlignEnum.LEFT,
+                                false
+                            )
+                        }
+                    }
+
+                    // ---------- COLUMN ----------
+                    "column" -> {
+                        val left = label ?: ""
+                        val right = value
+
+                        val line =
+                            left.padEnd(18).take(18) +
+                            right.padStart(14).take(14)
+
+                        printer?.appendPrnStr(
+                            line,
+                            24,
+                            AlignEnum.LEFT,
+                            options?.getBoolean("bold") ?: false
+                        )
+                    }
+
+                    // ---------- IMAGE ----------
+                    "image" -> {
+                        val bitmap = base64ToBitmap(value) ?: continue
+                        val width = options?.getInt("width") ?: bitmap.width
+
+                        val ratio = width.toFloat() / bitmap.width
+                        val height = (bitmap.height * ratio).toInt()
+
+                        val scaled = Bitmap.createScaledBitmap(
+                            bitmap,
+                            width,
+                            height,
+                            true
+                        )
+
+                        val align = when (options?.getString("position")) {
+                            "center" -> AlignEnum.CENTER
+                            "right" -> AlignEnum.RIGHT
+                            else -> AlignEnum.LEFT
+                        }
+
+                        printer?.appendImage(scaled, align)
+                    }
+
+                    // ---------- QR CODE ----------
+                    "qrcode" -> {
+                        val size = options?.getInt("size") ?: 240
+                        printer?.appendBarcode(
+                            value,
+                            BarcodeFormatEnum.QR_CODE,
+                            size,
+                            size,
+                            AlignEnum.CENTER
+                        )
+                    }
                 }
             }
+
+            printer?.startPrint(true, this)
+            promise.resolve("PRINT_STARTED")
+
         } catch (e: Exception) {
-            promise.reject("PRINT_DYNAMIC_ERROR", e.message)
+            promise.reject("PRINT_ERROR", e.message)
+        }
+    }
+
+    private fun base64ToBitmap(base64: String): Bitmap? {
+        return try {
+            val bytes = Base64.decode(base64, Base64.DEFAULT)
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        } catch (e: Exception) {
+            null
         }
     }
 
