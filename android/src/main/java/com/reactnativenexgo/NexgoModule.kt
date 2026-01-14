@@ -112,6 +112,98 @@ class NexgoModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
   }
 
+  fun printDynamic(receiptData: ReadableArray, promise: Promise) {
+        try {
+            val deviceEngine = APIProxy.getDeviceEngine(reactApplicationContext)
+            printer = deviceEngine.printer
+            printer?.initPrinter()
+
+            // Cek status printer
+            when (printer?.status) {
+                SdkResult.Success -> {
+                    for (i in 0 until receiptData.size()) {
+                        val item = receiptData.getMap(i) ?: continue
+                        val type = item.getString("type") ?: "text"
+                        val value = item.getString("value") ?: ""
+                        val options = item.getMap("options")
+
+                        when (type.lowercase()) {
+
+                            "text" -> printer?.appendPrnStr(value, 24, AlignEnum.LEFT, false)
+
+                            "header" -> printer?.appendPrnStr(value, 26, AlignEnum.CENTER, true)
+
+                            "divider" -> {
+                                val height = options?.getInt("height") ?: 1
+                                repeat(height) {
+                                    printer?.appendPrnStr("--------------------------------", 24, AlignEnum.LEFT, false)
+                                }
+                            }
+
+                            "align" -> {
+                                // Options: "left", "center", "right"
+                                val align = when (value.lowercase()) {
+                                    "center" -> AlignEnum.CENTER
+                                    "right" -> AlignEnum.RIGHT
+                                    else -> AlignEnum.LEFT
+                                }
+                                printer?.appendPrnStr("", 24, align, false) // dummy line
+                            }
+
+                            "column" -> {
+                                // value = data, label = left side
+                                val label = item.getString("label") ?: ""
+                                val text = "$label: $value"
+                                printer?.appendPrnStr(text, 24, AlignEnum.LEFT, false)
+                            }
+
+                            "image" -> {
+                                val bitmap = stringToBitMap(value)
+                                if (bitmap != null) {
+                                    // Resize if options.width
+                                    val width = options?.getInt("width") ?: bitmap.width
+                                    val ratio = width.toFloat() / bitmap.width
+                                    val height = (bitmap.height * ratio).toInt()
+                                    val scaled = Bitmap.createScaledBitmap(bitmap, width, height, true)
+
+                                    val align = when (options?.getString("position")?.lowercase()) {
+                                        "center" -> AlignEnum.CENTER
+                                        "right" -> AlignEnum.RIGHT
+                                        else -> AlignEnum.LEFT
+                                    }
+                                    printer?.appendImage(scaled, align)
+                                }
+                            }
+
+                            "qrcode" -> {
+                                val size = options?.getInt("size") ?: 240
+                                printer?.appendQrCode(value, size, size, AlignEnum.CENTER)
+                            }
+
+                            else -> {
+                                printer?.appendPrnStr(value, 24, AlignEnum.LEFT, false)
+                            }
+                        }
+                    }
+
+                    // Start printing
+                    printer?.startPrint(true, this)
+                    promise.resolve("Print Started")
+                }
+
+                SdkResult.Printer_PaperLack -> {
+                    promise.resolve("Printer out of paper")
+                }
+
+                else -> {
+                    promise.reject("PRINTER_ERROR", "Printer init failed: ${printer?.status}")
+                }
+            }
+        } catch (e: Exception) {
+            promise.reject("PRINT_DYNAMIC_ERROR", e.message)
+        }
+    }
+
 
   private fun stringToBitMap(encodedString: String?): Bitmap? {
     return try {
