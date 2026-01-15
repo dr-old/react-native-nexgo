@@ -22,3 +22,22 @@ export function printReceipt(
 ): Promise<any> {
   return Nexgo.printReceipt(recieptContent);
 }
+
+/**
+ * ✅ PRINT DYNAMIC (TEXT / IMAGE / QR)
+ * This MUST match @ReactMethod name in Kotlin
+ */
+export function printDynamic(
+  data: Array<{
+    type: 'text' | 'image' | 'qrcode';
+    value: string;
+    options?: {
+      size?: number;
+      align?: 'left' | 'center' | 'right';
+      width?: number;
+      height?: number;
+    };
+  }>
+): Promise<any> {
+  return Nexgo.printDynamic(data);
+}
