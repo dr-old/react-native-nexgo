@@ -139,7 +139,8 @@ dependencies {
   implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
   // native module
-  implementation project(":nexgo-sdk-v303")
+  // implementation project(":nexgo-sdk-v303")
+  implementation project(":nexgo-sdk-v308-011-20251011")
 
 }
 
