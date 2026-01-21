@@ -1,2 +1,2 @@
 configurations.maybeCreate("default")
-artifacts.add("default", file('nexgo-smartpos-sdk-v3.08.011_20251011.aar'))
+artifacts.add("default", file('nexgo-sdk-v308-011-20251011.aar'))
