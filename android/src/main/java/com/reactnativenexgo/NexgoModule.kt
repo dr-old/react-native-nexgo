@@ -147,13 +147,14 @@ class NexgoModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
                     // ---------- HEADER ----------
                     "header" -> {
-                        printer?.appendPrnStr(
+                      printer?.appendPrnStr(
                             value,
                             26,
                             AlignEnum.CENTER,
                             true
                         )
-                    }
+                    }               
+       
 
                     // ---------- TEXT ----------
                     "text" -> {
@@ -161,7 +162,7 @@ class NexgoModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                             value,
                             24,
                             currentAlign,
-                            false
+                            true
                         )
                     }
 
@@ -173,7 +174,7 @@ class NexgoModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                                 "--------------------------------",
                                 24,
                                 AlignEnum.LEFT,
-                                false
+                                true
                             )
                         }
                     }
@@ -191,7 +192,7 @@ class NexgoModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                             line,
                             24,
                             AlignEnum.LEFT,
-                            options?.getBoolean("bold") ?: false
+                            true
                         )
                     }
 
